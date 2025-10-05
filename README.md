@@ -1,9 +1,9 @@
 # CM1 Heterogeneous Initialization (isnd=67)
 
-Modify CM1 to initialize from a **3-D heterogeneous analysis** (e.g., HRRR) instead of horizontally translating a single 1-D sounding. This adds a new initialization path `isnd=67` that:
+Modify CM1 to initialize from a **3-D heterogeneous analysis** (e.g., HRRR analysis). This adds a new initialization path `isnd=67` that:
 - reads a NetCDF file with 3-D fields on a source grid,
 - horizontally resamples each source level to the CM1 horizontal grid,
-- vertically interpolates to CM1’s stretched/unstretched `zh(i,j,:)`,
+- vertically and horizontally interpolates to CM1’s stretched/unstretched,
 - computes thermodynamics hydrostatically from the provided surface fields,
 - populates CM1 base arrays (`th0, qv0, u0, v0, pi0, prs0, t0, rh0`) on the mass grid.
 
