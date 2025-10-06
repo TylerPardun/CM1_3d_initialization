@@ -17,11 +17,11 @@ These files can be found in the src/ directory of CM1 version 21.1. You could tr
 - cm1.F # Unchanged except accept adding xh and yh into the base.F subroutine
 - cm1_init3d_nc.F # New NetCDF reader for 3D inputs
 - cm1_interp3d.F # New horizontal and vertical resampling subroutines
-- input_sounding.nc # This is the example input (python notebook on how to create it)
+- input_sounding.nc # This is the example input (included python notebook on how to create it)
 - Makefile # Modified build rules
 - get_hrrr_for_cm1.ipynb #Notebook example to get a HRRR grid into the input_sounding.nc format
 
-### New entry point
+### New entry point in the namelist.input
 - `isnd = 67` → read 3-D analysis and build a heterogeneous base state.
 
 ---
