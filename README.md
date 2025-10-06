@@ -12,6 +12,7 @@ This was done to allow controlled experiments with heterogeneous backgrounds to 
 
 ## What’s in here
 
+These files can be found in the src/ directory of CM1 version 21.1. You could try to implement this in earlier versions, but prepare yourself..
 - base.F # Adds the isnd == 67 path to read and populate the CM1 grid with the 3D input_sounding
 - cm1.F # Unchanged except accept adding xh and yh into the base.F subroutine
 - cm1_init3d_nc.F # New NetCDF reader for 3D inputs
