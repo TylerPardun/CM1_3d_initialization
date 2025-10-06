@@ -14,7 +14,6 @@
 OUTPUTINC = -I$(NETCDF)/include -I$(NETCDFF)/include
 OUTPUTLIB = -L$(NETCDF)/lib    -L$(NETCDFF)/lib
 OUTPUTOPT = -DNETCDF -DNCFPLUS
-# link order matters: Fortran first, then C
 LINKOPTS  = -lnetcdff -lnetcdf
 #-----------------------------------------------------------------------------
 
