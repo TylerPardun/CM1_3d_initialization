@@ -199,21 +199,59 @@
 !---------------------------------------------------------------------------
     ELSEIF (isnd .eq. 67) THEN
     
-      if (dowr) then
-        write(outfile,*)
-        write(outfile,*) ' Reading external 3D grid from file, input_sounding.nc'
-        write(outfile,*)
-      end if
+        if (dowr) then
+          write(outfile,*)
+          write(outfile,*) ' Reading external 3D grid from file, input_sounding.nc'
+          write(outfile,*)
+        end if
+
+        !--------------------------
+        ! Rank 0 reads the file
+        !--------------------------
+        prc67: IF (myid .eq. 0) THEN
+          call read_init3d_nc("input_sounding.nc", &
+               thsnd3, qvsnd3, usnd3, vsnd3, &
+               p_sfc2d, th_sfc2d, qv_sfc2d, &
+               zsnd, xsnd, ysnd, ierr_local, nxsnd, nysnd, nzsnd)
+          if (ierr_local /= 0) stop "read_init3d_nc failed"
+        END IF prc67
     
-      call read_init3d_nc("input_sounding.nc", &
-           thsnd3, qvsnd3, usnd3, vsnd3, &
-           p_sfc2d, th_sfc2d, qv_sfc2d, &
-           zsnd, xsnd, ysnd, ierr_local, nxsnd, nysnd, nzsnd)
+      #ifdef MPI
+        !--------------------------
+        ! Broadcast sizes to everyone
+        !--------------------------
+        call MPI_BCAST(nzsnd, 1, MPI_INTEGER, 0, MPI_COMM_WORLD, ierr_local)
+        call MPI_BCAST(nysnd, 1, MPI_INTEGER, 0, MPI_COMM_WORLD, ierr_local)
+        call MPI_BCAST(nxsnd, 1, MPI_INTEGER, 0, MPI_COMM_WORLD, ierr_local)
+     
+        !--------------------------
+        ! Allocate on non-root ranks
+        !--------------------------
+        if (myid /= 0) then
+          allocate(thsnd3(nxsnd,nysnd,nzsnd), qvsnd3(nxsnd,nysnd,nzsnd), &
+                 usnd3(nxsnd,nysnd,nzsnd),  vsnd3(nxsnd,nysnd,nzsnd))
+          allocate(p_sfc2d(nxsnd,nysnd), th_sfc2d(nxsnd,nysnd), qv_sfc2d(nxsnd,nysnd))
+          allocate(zsnd(nzsnd), xsnd(nxsnd), ysnd(nysnd))
+        end if
     
-      if (ierr_local /= 0) stop "read_init3d_nc failed"
-          
-       write(outfile,*) 'usnd3 min/max: ', minval(usnd3(:,:,1)),maxval(usnd3(:,:,1))
-      
+        !--------------------------
+        ! Broadcast array contents
+        ! NOTE: If your REALs are 8-byte, use MPI_DOUBLE_PRECISION instead of MPI_REAL.
+        !--------------------------
+        call MPI_BCAST(thsnd3,  nxsnd*nysnd*nzsnd, MPI_REAL, 0, MPI_COMM_WORLD, ierr_local)
+        call MPI_BCAST(qvsnd3,  nxsnd*nysnd*nzsnd, MPI_REAL, 0, MPI_COMM_WORLD, ierr_local)
+        call MPI_BCAST(usnd3,   nxsnd*nysnd*nzsnd, MPI_REAL, 0, MPI_COMM_WORLD, ierr_local)
+        call MPI_BCAST(vsnd3,   nxsnd*nysnd*nzsnd, MPI_REAL, 0, MPI_COMM_WORLD, ierr_local)
+    
+        call MPI_BCAST(p_sfc2d, nxsnd*nysnd,       MPI_REAL, 0, MPI_COMM_WORLD, ierr_local)
+        call MPI_BCAST(th_sfc2d,nxsnd*nysnd,       MPI_REAL, 0, MPI_COMM_WORLD, ierr_local)
+        call MPI_BCAST(qv_sfc2d,nxsnd*nysnd,       MPI_REAL, 0, MPI_COMM_WORLD, ierr_local)
+    
+        call MPI_BCAST(zsnd,    nzsnd,             MPI_REAL, 0, MPI_COMM_WORLD, ierr_local)
+        call MPI_BCAST(xsnd,    nxsnd,             MPI_REAL, 0, MPI_COMM_WORLD, ierr_local)
+        call MPI_BCAST(ysnd,    nysnd,             MPI_REAL, 0, MPI_COMM_WORLD, ierr_local)
+      #endif
+                    
       ! Quick file sanity: guard against wrong dim order or empty content
       if (maxval(thsnd3) .eq. 0.0) then
         if (dowr) write(outfile,*) 'External file appears empty or mis-shaped; expected (nz,ny,nx) & (ny,nx).'

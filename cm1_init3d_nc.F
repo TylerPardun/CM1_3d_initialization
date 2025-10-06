@@ -10,6 +10,7 @@ subroutine disp_err(where, status)
   integer,          intent(in) :: status
 end subroutine disp_err
             
+
 subroutine read_init3d_nc( fname, &
      thsnd3, qvsnd3, usnd3, vsnd3, &
      p_sfc2d, th_sfc2d, qv_sfc2d, &
