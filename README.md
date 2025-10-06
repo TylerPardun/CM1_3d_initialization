@@ -4,7 +4,7 @@ Modify CM1 v21.1 to initialize from a **3-D heterogeneous analysis** (e.g., HRRR
 - reads a NetCDF file with 3-D fields on a source grid named "input_sounding.nc",
 - horizontally resamples each source level to the CM1 horizontal grid specifications,
 - vertically and horizontally interpolates to CM1’s stretched/unstretched if desired,
-- computes thermodynamics from the familiar surface fields we are used to
+- computes thermodynamics from the familiar surface fields when using your own input sounding
 
 This was done to allow controlled experiments with heterogeneous backgrounds to probe CM1 biases and investigate storm–environment feedbacks in controlled settings. If you have any questions (or beer offerings) feel free to reach out (tyler.pardun@noaa.gov). A special thanks to Dr. George Bryan for his continued maintainence of CM1, which can be downloaded here (https://www2.mmm.ucar.edu/people/bryan/cm1/).
 
