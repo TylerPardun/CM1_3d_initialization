@@ -34,7 +34,7 @@ A NetCDF file named `input_sounding.nc` with familiar "input_sounding" variables
 - 2-D surface fields (stored as `(yh, xh)`):
   - `psfc` [hPa], `th0` [K], `qv0` [g/kg]
 - Coordinates:
-  - `xh(xh)`, `yh(yh)`, `zh(zh)` in **meters**, relative to some point origin
+  - `xh(xh)`, `yh(yh)`, `zh(zh)` in **meters**, relative to some origin
 
 Example header:
 ```txt
