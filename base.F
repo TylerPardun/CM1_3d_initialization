@@ -208,7 +208,9 @@
            zsnd, xsnd, ysnd, ierr_local, nxsnd, nysnd, nzsnd)
     
       if (ierr_local /= 0) stop "read_init3d_nc failed"
-    
+          
+       write(outfile,*) 'usnd3 min/max: ', minval(usnd3(:,:,1)),maxval(usnd3(:,:,1))
+      
       ! Quick file sanity: guard against wrong dim order or empty content
       if (maxval(thsnd3) .eq. 0.0) then
         if (dowr) write(outfile,*) 'External file appears empty or mis-shaped; expected (nz,ny,nx) & (ny,nx).'
@@ -262,6 +264,7 @@
         call bilinear_resample2d(xsnd, ysnd, vsnd3(:,:,k),  xh, yh,  v_h(:,:,k))
       end do
     
+       write(outfile,*) 'u_h min/max: ', minval(u_h(:,:,1)),maxval(u_h(:,:,1))
       ! Free source 3D fields & lateral coords (we’re done with source grid)
       deallocate(thsnd3, qvsnd3, usnd3, vsnd3, xsnd, ysnd)
     
@@ -279,7 +282,8 @@
           call vert_linear_to_zh(zsnd,  v_h(i,j,:), zh(i,j,:),  v_on_cm1(i,j,:))
         end do
       end do
-    
+      
+      write(outfile,*) 'u_on_cm1 min/max: ', minval(u_on_cm1(:,:,1)),maxval(u_on_cm1(:,:,1))
       ! Done with horiz-staged fields & source vertical
       deallocate(th_h, qv_h, u_h, v_h, zsnd)
     
@@ -293,7 +297,7 @@
       allocate(psnd3  (ib:ie, jb:je, kb:ke))
       allocate(tsnd3  (ib:ie, jb:je, kb:ke))
       allocate(rhsnd3 (ib:ie, jb:je, kb:ke))
-    
+
       do k = kb, ke
         do j = jb, je
           do i = ib, ie
@@ -301,26 +305,44 @@
           end do
         end do
       end do
-    
-      ! Hydrostatic from surface Exner
+      
+      ! Hydrostatic from surface Exner (seed at surface, then integrate up)
       do j = jb, je
         do i = ib, ie
+          ! surface exner from psfc (Pa)
           pi_sfc = (p_sfc2d(i,j)/p00)**(rd/cp)
-          qvsfc  = merge(qv_sfc2d(i,j), 0.0, imoist==1)
+    
+          ! optional sanity clamp to avoid pathological seeds
+          pi_sfc = min(1.2, max(0.7, pi_sfc))
+    
+          ! surface virtual theta from 2D fields (qv in kg/kg)
+          qvsfc   = merge(qv_sfc2d(i,j), 0.0, imoist==1)
           thv_sfc = th_sfc2d(i,j) * (1.0 + reps*qvsfc) / (1.0 + qvsfc)
     
-          dz = zh(i,j,kb)
-          pisnd3(i,j,kb) = pi_sfc - g*dz/(cp*0.5*(thv_sfc + thvsnd3(i,j,kb)))
-          do k = kb+1, ke
-            dz = zh(i,j,k) - zh(i,j,k-1)
-            pisnd3(i,j,k) = pisnd3(i,j,k-1) - g*dz/(cp*0.5*(thvsnd3(i,j,k-1) + thvsnd3(i,j,k)))
+          ! floor thv on levels to avoid division by tiny values
+          do k = kb, ke
+            thvsnd3(i,j,k) = max(thvsnd3(i,j,k), 200.0)
           end do
     
+          ! seed: level kb equals surface
+          pisnd3(i,j,kb) = pi_sfc
+    
+          ! integrate hydrostatic upward, layer by layer
+          do k = kb+1, ke
+            dz     = zh(i,j,k) - zh(i,j,k-1)
+            dz     = max(dz, 0.0)
+            pisnd3(i,j,k) = pisnd3(i,j,k-1) - g*dz/(cp*(0.5*( thvsnd3(i,j,k-1) + thvsnd3(i,j,k) )))
+          end do
+    
+          ! convert exner -> pressure, temperature; build RH if needed
           do k = kb, ke
             psnd3(i,j,k) = p00 * (pisnd3(i,j,k)**(cp/rd))
             tsnd3(i,j,k) = th_on_cm1(i,j,k) * pisnd3(i,j,k)
+    
             if (imoist == 1) then
-              if (qv_on_cm1(i,j,k) < 1.0e-12) qv_on_cm1(i,j,k) = 0.001 * rslf(psnd3(i,j,k), tsnd3(i,j,k))
+              if (qv_on_cm1(i,j,k) < 1.0e-12) then
+                qv_on_cm1(i,j,k) = 0.001 * rslf(psnd3(i,j,k), tsnd3(i,j,k))   ! 0.1% RH floor
+              end if
               rhsnd3(i,j,k) = qv_on_cm1(i,j,k) / rslf(psnd3(i,j,k), tsnd3(i,j,k))
             else
               rhsnd3(i,j,k) = 0.0
@@ -329,22 +351,77 @@
         end do
       end do
     
+      !write(outfile,*) 'pisnd3 min/max: ', minval(pisnd3),maxval(pisnd3)
+      !write(outfile,*) 'rhsnd3 min/max: ', minval(rhsnd3),maxval(rhsnd3)
+      !write(outfile,*) 'psnd3 min/max: ', minval(psnd3),maxval(psnd3)
+      !write(outfile,*) 'tsnd3 min/max: ', minval(tsnd3),maxval(tsnd3)
+      
+      ! u0 on u-stagger (average adjacent mass-cell centers in x)
+      do k=kb,ke; do j=jb,je
+        do i=ib+1,ie            ! interior u-points
+          u0(i,j,k) = 0.5*(u_on_cm1(i-1,j,k) + u_on_cm1(i,j,k))
+        end do
+        ! boundary u-points: copy nearest interior or apply your BC
+        u0(ib,  j,k) = u_on_cm1(ib,  j,k)
+        u0(ie+1,j,k) = u_on_cm1(ie,  j,k)
+      end do; end do
+      
+      write(outfile,*) 'u0 min/max: ', minval(u0(:,:,1)),maxval(u0(:,:,1))
+
+      ! v0 on v-stagger (average in y)
+      do k=kb,ke; do i=ib,ie
+        do j=jb+1,je
+          v0(i,j,k) = 0.5*(v_on_cm1(i,j-1,k) + v_on_cm1(i,j,k))
+        end do
+        v0(i,jb,  k) = v_on_cm1(i,jb,  k)
+        v0(i,je+1,k) = v_on_cm1(i,je,  k)
+      end do; end do
+      
       ! ---------- 4) Commit to CM1 base fields ----------
       do j = jb, je
         do i = ib, ie
           do k = kb, ke
-            u0  (i,j,k) = u_on_cm1 (i,j,k)
-            v0  (i,j,k) = v_on_cm1 (i,j,k)
-            qv0 (i,j,k) = qv_on_cm1(i,j,k)
-            th0 (i,j,k) = th_on_cm1(i,j,k)
-            pi0 (i,j,k) = pisnd3(i,j,k)
+            qv0(i,j,k) = qv_on_cm1(i,j,k)
+            th0(i,j,k) = th_on_cm1(i,j,k)
+            pi0(i,j,k) = pisnd3(i,j,k)
             prs0(i,j,k) = psnd3 (i,j,k)
-            t0  (i,j,k) = tsnd3 (i,j,k)
-            rh0 (i,j,k) = rhsnd3(i,j,k)
+            t0(i,j,k) = tsnd3 (i,j,k)
+            rh0(i,j,k) = rhsnd3(i,j,k)
           end do
         end do
       end do
-    
+
+      ! thv0: virtual potential temperature
+      do k=kb,ke; do j=jb,je; do i=ib,ie
+        thv0(i,j,k) = th0(i,j,k) * (1.0 + reps*qv0(i,j,k)) / (1.0 + qv0(i,j,k))
+      end do; end do; end do
+
+      ! Density (using virtual temp): rho = p / (Rd * Tv)
+      ! Tv = T * (1 + 0.61*qv)  (CM1 uses reps = Rv/Rd - 1; either form is fine)
+      do k=kb,ke; do j=jb,je; do i=ib,ie
+        rho0(i,j,k) = prs0(i,j,k) / ( rd * t0(i,j,k) * (1.0 + 0.61*qv0(i,j,k)) )
+        rth0(i,j,k) = rho0(i,j,k) * th0(i,j,k)
+      end do; end do; end do
+
+      ! Surface slices
+      rho0s(:,:) = rho0(:,:,kb)
+      rth0s(:,:) = rth0(:,:,kb)
+      pi0s (:,:) = pi0 (:,:,kb)
+      prs0s(:,:) = prs0(:,:,kb)
+      
+      write(outfile,*) 'rho0s min/max: ', minval(rho0s),maxval(rho0s)
+      write(outfile,*) 'rth0s min/max: ', minval(rth0s),maxval(rth0s)
+      write(outfile,*) 'pi0s min/max: ', minval(pi0s),maxval(pi0s)
+      write(outfile,*) 'prs0s min/max: ', minval(prs0s),maxval(prs0s)
+            
+      write(outfile,*) 'thv0 min/max: ', minval(thv0),maxval(thv0)
+      write(outfile,*) 'qv0 min/max: ', minval(qv0),maxval(qv0)
+      write(outfile,*) 'th0 min/max: ', minval(th0),maxval(th0)
+      write(outfile,*) 'pi0 min/max: ', minval(pi0),maxval(pi0)
+      write(outfile,*) 'prs0 min/max: ', minval(prs0),maxval(prs0)
+      write(outfile,*) 't0 min/max: ', minval(t0),maxval(t0)
+      write(outfile,*) 'rho0 min/max: ', minval(rho0),maxval(rho0)
+
       ! ---------- 5) Cleanup ----------
       deallocate(u_on_cm1, v_on_cm1, qv_on_cm1, th_on_cm1)
       deallocate(pisnd3, psnd3, tsnd3, rhsnd3)
@@ -2452,7 +2529,7 @@
 ! already been retrieved from the input_sounding file
 !--------------------------
 
-    IF(isnd.ne.7)THEN
+    IF( (isnd.ne.7) .and. (isnd.ne.67) ) THEN !Modified to incorporate heterogeneous initialization
 
       do k=1,nk
       do j=1,nj
