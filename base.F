@@ -133,7 +133,6 @@
       integer :: ierr_local, nxsnd, nysnd, nzsnd
     
       real, allocatable :: th_h(:,:,:), qv_h(:,:,:), u_h(:,:,:), v_h(:,:,:)
-      real, allocatable :: th_on_cm1(:,:,:), qv_on_cm1(:,:,:), u_on_cm1(:,:,:), v_on_cm1(:,:,:)
       real, allocatable :: thvsnd3(:,:,:), pisnd3(:,:,:), psnd3(:,:,:), tsnd3(:,:,:), rhsnd3(:,:,:)
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! End 3D initialization from input_sounding.nc
@@ -269,26 +268,21 @@
       deallocate(thsnd3, qvsnd3, usnd3, vsnd3, xsnd, ysnd)
     
       ! ---------- 2) Vertical 1-D interp at each (i,j): zsnd(:) -> zh(i,j,:) ----------
-      allocate(th_on_cm1(ib:ie, jb:je, kb:ke))
-      allocate(qv_on_cm1(ib:ie, jb:je, kb:ke))
-      allocate(u_on_cm1 (ib:ie, jb:je, kb:ke))
-      allocate(v_on_cm1 (ib:ie, jb:je, kb:ke))
-    
       do j = jb, je
         do i = ib, ie
-          call vert_linear_to_zh(zsnd, th_h(i,j,:), zh(i,j,:), th_on_cm1(i,j,:))
-          call vert_linear_to_zh(zsnd, qv_h(i,j,:), zh(i,j,:), qv_on_cm1(i,j,:))
-          call vert_linear_to_zh(zsnd,  u_h(i,j,:), zh(i,j,:),  u_on_cm1(i,j,:))
-          call vert_linear_to_zh(zsnd,  v_h(i,j,:), zh(i,j,:),  v_on_cm1(i,j,:))
+          call vert_linear_to_zh(zsnd, th_h(i,j,:), zh(i,j,:), th0(i,j,:))
+          call vert_linear_to_zh(zsnd, qv_h(i,j,:), zh(i,j,:), qv0(i,j,:))
+          call vert_linear_to_zh(zsnd,  u_h(i,j,:), zh(i,j,:),  u0(i,j,:))
+          call vert_linear_to_zh(zsnd,  v_h(i,j,:), zh(i,j,:),  v0(i,j,:))
         end do
       end do
       
-      write(outfile,*) 'u_on_cm1 min/max: ', minval(u_on_cm1(:,:,1)),maxval(u_on_cm1(:,:,1))
+      write(outfile,*) 'u0 min/max: ', minval(u0(:,:,1)),maxval(u0(:,:,1))
       ! Done with horiz-staged fields & source vertical
       deallocate(th_h, qv_h, u_h, v_h, zsnd)
     
       ! Units to SI on CM1 grid
-      if (imoist .eq. 1) qv_on_cm1 = qv_on_cm1 / 1000.0   ! g/kg -> kg/kg
+      if (imoist .eq. 1) qv0 = qv0 / 1000.0   ! g/kg -> kg/kg
       p_sfc2d = p_sfc2d * 100.0                           ! hPa  -> Pa
     
       ! ---------- 3) Thermodynamics on CM1 grid ----------
@@ -301,53 +295,60 @@
       do k = kb, ke
         do j = jb, je
           do i = ib, ie
-            thvsnd3(i,j,k) = th_on_cm1(i,j,k) * (1.0 + reps*qv_on_cm1(i,j,k)) / (1.0 + qv_on_cm1(i,j,k))
+            thvsnd3(i,j,k) = th0(i,j,k) * (1.0 + reps*qv0(i,j,k)) / (1.0 + qv0(i,j,k))
           end do
         end do
       end do
       
-      ! Hydrostatic from surface Exner (seed at surface, then integrate up)
+      ! --- Hydrostatic from surface Exner, per (i,j), matching isnd=7 semantics ---
+    
       do j = jb, je
         do i = ib, ie
-          ! surface exner from psfc (Pa)
-          pi_sfc = (p_sfc2d(i,j)/p00)**(rd/cp)
     
-          ! optional sanity clamp to avoid pathological seeds
-          pi_sfc = min(1.2, max(0.7, pi_sfc))
+          ! 1) Surface Exner (psfc already in Pa here), and surface virtual theta
+          pi_sfc  = (p_sfc2d(i,j)/p00)**(rd/cp)
     
-          ! surface virtual theta from 2D fields (qv in kg/kg)
-          qvsfc   = merge(qv_sfc2d(i,j), 0.0, imoist==1)
+          qvsfc   = merge(qv_sfc2d(i,j), 0.0, imoist==1)      ! kg/kg already
           thv_sfc = th_sfc2d(i,j) * (1.0 + reps*qvsfc) / (1.0 + qvsfc)
     
-          ! floor thv on levels to avoid division by tiny values
+          ! 2) Make sure th0/qv0 are what we integrate with (from your horiz+vert interp)
+          !     Build thv0(i,j,k) from th0/qv0, with a small floor like isnd=7 safety.
           do k = kb, ke
-            thvsnd3(i,j,k) = max(thvsnd3(i,j,k), 200.0)
+            thv0(i,j,k) = th0(i,j,k) * (1.0 + reps*qv0(i,j,k)) / (1.0 + qv0(i,j,k))
+            thv0(i,j,k) = max(thv0(i,j,k), 200.0)     ! defensive floor, avoids tiny denom
           end do
     
-          ! seed: level kb equals surface
-          pisnd3(i,j,kb) = pi_sfc
+          ! 3) Hydrostatic integration for Exner pi0 on mass levels
+          !     Seed at the first mass level with surface-slope correction (same as isnd=7)
+          pi0(i,j,kb) = pi_sfc - g*zh(i,j,kb) / (cp * 0.5*(thv_sfc + thv0(i,j,kb)))
     
-          ! integrate hydrostatic upward, layer by layer
           do k = kb+1, ke
-            dz     = zh(i,j,k) - zh(i,j,k-1)
-            dz     = max(dz, 0.0)
-            pisnd3(i,j,k) = pisnd3(i,j,k-1) - g*dz/(cp*(0.5*( thvsnd3(i,j,k-1) + thvsnd3(i,j,k) )))
+            dz         = zh(i,j,k) - zh(i,j,k-1)
+            dz         = max(dz, 0.0)
+            pi0(i,j,k) = pi0(i,j,k-1) - g*dz / (cp * 0.5*( thv0(i,j,k-1) + thv0(i,j,k) ))
           end do
     
-          ! convert exner -> pressure, temperature; build RH if needed
+          ! 4) Pressure and temperature from Exner/Theta
           do k = kb, ke
-            psnd3(i,j,k) = p00 * (pisnd3(i,j,k)**(cp/rd))
-            tsnd3(i,j,k) = th_on_cm1(i,j,k) * pisnd3(i,j,k)
-    
-            if (imoist == 1) then
-              if (qv_on_cm1(i,j,k) < 1.0e-12) then
-                qv_on_cm1(i,j,k) = 0.001 * rslf(psnd3(i,j,k), tsnd3(i,j,k))   ! 0.1% RH floor
-              end if
-              rhsnd3(i,j,k) = qv_on_cm1(i,j,k) / rslf(psnd3(i,j,k), tsnd3(i,j,k))
-            else
-              rhsnd3(i,j,k) = 0.0
-            end if
+            prs0(i,j,k) = p00 * (pi0(i,j,k)**(cp/rd))
+            t0  (i,j,k) = th0(i,j,k) * pi0(i,j,k)
           end do
+    
+          ! 5) Moist: enforce 0.1% RH floor and compute RH like isnd=7
+          if (imoist == 1) then
+            do k = kb, ke
+              if (qv0(i,j,k) < 1.0e-12) then
+                  ! set qv to 0.1% of saturation
+              qv0(i,j,k) = 0.001 * rslf(prs0(i,j,k), t0(i,j,k))
+              end if
+              rh0(i,j,k) = qv0(i,j,k) / rslf(prs0(i,j,k), t0(i,j,k))
+            end do
+          else
+            do k = kb, ke
+              rh0(i,j,k) = 0.0
+            end do
+          end if
+    
         end do
       end do
     
@@ -356,46 +357,6 @@
       !write(outfile,*) 'psnd3 min/max: ', minval(psnd3),maxval(psnd3)
       !write(outfile,*) 'tsnd3 min/max: ', minval(tsnd3),maxval(tsnd3)
       
-      ! u0 on u-stagger (average adjacent mass-cell centers in x)
-      do k=kb,ke; do j=jb,je
-        do i=ib+1,ie            ! interior u-points
-          u0(i,j,k) = 0.5*(u_on_cm1(i-1,j,k) + u_on_cm1(i,j,k))
-        end do
-        ! boundary u-points: copy nearest interior or apply your BC
-        u0(ib,  j,k) = u_on_cm1(ib,  j,k)
-        u0(ie+1,j,k) = u_on_cm1(ie,  j,k)
-      end do; end do
-      
-      write(outfile,*) 'u0 min/max: ', minval(u0(:,:,1)),maxval(u0(:,:,1))
-
-      ! v0 on v-stagger (average in y)
-      do k=kb,ke; do i=ib,ie
-        do j=jb+1,je
-          v0(i,j,k) = 0.5*(v_on_cm1(i,j-1,k) + v_on_cm1(i,j,k))
-        end do
-        v0(i,jb,  k) = v_on_cm1(i,jb,  k)
-        v0(i,je+1,k) = v_on_cm1(i,je,  k)
-      end do; end do
-      
-      ! ---------- 4) Commit to CM1 base fields ----------
-      do j = jb, je
-        do i = ib, ie
-          do k = kb, ke
-            qv0(i,j,k) = qv_on_cm1(i,j,k)
-            th0(i,j,k) = th_on_cm1(i,j,k)
-            pi0(i,j,k) = pisnd3(i,j,k)
-            prs0(i,j,k) = psnd3 (i,j,k)
-            t0(i,j,k) = tsnd3 (i,j,k)
-            rh0(i,j,k) = rhsnd3(i,j,k)
-          end do
-        end do
-      end do
-
-      ! thv0: virtual potential temperature
-      do k=kb,ke; do j=jb,je; do i=ib,ie
-        thv0(i,j,k) = th0(i,j,k) * (1.0 + reps*qv0(i,j,k)) / (1.0 + qv0(i,j,k))
-      end do; end do; end do
-
       ! Density (using virtual temp): rho = p / (Rd * Tv)
       ! Tv = T * (1 + 0.61*qv)  (CM1 uses reps = Rv/Rd - 1; either form is fine)
       do k=kb,ke; do j=jb,je; do i=ib,ie
@@ -423,7 +384,6 @@
       write(outfile,*) 'rho0 min/max: ', minval(rho0),maxval(rho0)
 
       ! ---------- 5) Cleanup ----------
-      deallocate(u_on_cm1, v_on_cm1, qv_on_cm1, th_on_cm1)
       deallocate(pisnd3, psnd3, tsnd3, rhsnd3)
       deallocate(p_sfc2d, th_sfc2d, qv_sfc2d)
       
