@@ -6,7 +6,7 @@ Modify CM1 v21.1 to initialize from a **3-D heterogeneous analysis** (e.g., HRRR
 - vertically and horizontally interpolates to CM1’s stretched/unstretched if desired,
 - computes thermodynamics from the familiar surface fields we are used to
 
-This was done to allow controlled experiments with heterogeneous backgrounds to probe CM1 biases and investigate storm–environment feedbacks in controlled settings. If you have any questions (or beer offerings) feel free to reach out (tyler.pardun@noaa.gov)
+This was done to allow controlled experiments with heterogeneous backgrounds to probe CM1 biases and investigate storm–environment feedbacks in controlled settings. If you have any questions (or beer offerings) feel free to reach out (tyler.pardun@noaa.gov). A special thanks to Dr. George Bryan for his continued maintainence of CM1.
 
 ---
 
