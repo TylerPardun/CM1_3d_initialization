@@ -22,7 +22,7 @@
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Modified for initializing a 3D external grid by Tyler Pardun (OU/CIWRO/NSSL). 
-! Modifications can be found by searching "!3D input_sounding"
+! Modifications can be found by searching "!3D input_sounding" (Just one though)
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
       use input
