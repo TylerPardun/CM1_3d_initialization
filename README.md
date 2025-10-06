@@ -12,8 +12,8 @@ This was done to allow controlled experiments with heterogeneous backgrounds to 
 
 ## What’s in here
 
-base.F # adds the isnd == 67 path to read and populate the CM1 grid with the 3D input_sounding
-cm1.F # unchanged except accept adding xh and yh into the base.F subroutine
+base.F # Adds the isnd == 67 path to read and populate the CM1 grid with the 3D input_sounding
+cm1.F # Unchanged except accept adding xh and yh into the base.F subroutine
 cm1_init3d_nc.F # New NetCDF reader for 3D inputs
 cm1_interp3d.F # New horizontal and vertical resampling subroutines
 input_sounding.nc # This is the example input (python notebook on how to create it)
