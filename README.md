@@ -12,13 +12,13 @@ This was done to allow controlled experiments with heterogeneous backgrounds to 
 
 ## What’s in here
 
-base.F # Adds the isnd == 67 path to read and populate the CM1 grid with the 3D input_sounding
-cm1.F # Unchanged except accept adding xh and yh into the base.F subroutine
-cm1_init3d_nc.F # New NetCDF reader for 3D inputs
-cm1_interp3d.F # New horizontal and vertical resampling subroutines
-input_sounding.nc # This is the example input (python notebook on how to create it)
-Makefile # Modified build rules
-get_hrrr_for_cm1.ipynb #Notebook example to get a HRRR grid into the input_sounding.nc format
+- base.F # Adds the isnd == 67 path to read and populate the CM1 grid with the 3D input_sounding
+- cm1.F # Unchanged except accept adding xh and yh into the base.F subroutine
+- cm1_init3d_nc.F # New NetCDF reader for 3D inputs
+- cm1_interp3d.F # New horizontal and vertical resampling subroutines
+- input_sounding.nc # This is the example input (python notebook on how to create it)
+- Makefile # Modified build rules
+- get_hrrr_for_cm1.ipynb #Notebook example to get a HRRR grid into the input_sounding.nc format
 
 ### New entry point
 - `isnd = 67` → read 3-D analysis and build a heterogeneous base state.
