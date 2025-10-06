@@ -1,6 +1,6 @@
 # CM1 Heterogeneous Initialization (isnd=67)
 
-Modify CM1 to initialize from a **3-D heterogeneous analysis** (e.g., HRRR analysis). This adds a new initialization path `isnd=67` that:
+Modify CM1 v21.1 to initialize from a **3-D heterogeneous analysis** (e.g., HRRR analysis). This adds a new initialization path `isnd=67` that:
 - reads a NetCDF file with 3-D fields on a source grid,
 - horizontally resamples each source level to the CM1 horizontal grid,
 - vertically and horizontally interpolates to CM1’s stretched/unstretched,
