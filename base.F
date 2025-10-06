@@ -216,7 +216,7 @@
           if (ierr_local /= 0) stop "read_init3d_nc failed"
         END IF prc67
     
-      #ifdef MPI
+#ifdef MPI
         !--------------------------
         ! Broadcast sizes to everyone
         !--------------------------
@@ -250,7 +250,7 @@
         call MPI_BCAST(zsnd,    nzsnd,             MPI_REAL, 0, MPI_COMM_WORLD, ierr_local)
         call MPI_BCAST(xsnd,    nxsnd,             MPI_REAL, 0, MPI_COMM_WORLD, ierr_local)
         call MPI_BCAST(ysnd,    nysnd,             MPI_REAL, 0, MPI_COMM_WORLD, ierr_local)
-      #endif
+#endif
                     
       ! Quick file sanity: guard against wrong dim order or empty content
       if (maxval(thsnd3) .eq. 0.0) then
