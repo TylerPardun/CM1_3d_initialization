@@ -10,11 +10,6 @@
 #
 # --- NETCDF (C and Fortran)
 # Set these or pass on make cmdline
-export NETCDF=/opt/homebrew/opt/netcdf
-export NETCDFF=/opt/homebrew/opt/netcdf-fortran
-
-NETCDF  ?= /opt/homebrew/opt/netcdf
-NETCDFF ?= /opt/homebrew/opt/netcdf-fortran
 
 OUTPUTINC = -I$(NETCDF)/include -I$(NETCDFF)/include
 OUTPUTLIB = -L$(NETCDF)/lib    -L$(NETCDFF)/lib
@@ -29,15 +24,6 @@ LINKOPTS  = -lnetcdff -lnetcdf
 #-- Choose the appropriate architecture, and uncomment all lines 
 #-- in that section.  See "README.compile" for more information.
 #-----------------------------------------------------------------------------\
-
-# --- multiple processors, distributed memory (MPI), GNU compiler
-FC   = mpif90
-# Safe, fast flags for gfortran 15 on arm64 (Apple Silicon)
-OPTS = -O3 -ffree-form -ffree-line-length-none -fimplicit-none \
-       -fallow-argument-mismatch -fno-unsafe-math-optimizations \
-       -fno-sign-zero -march=armv8-a -mtune=native
-CPP  = cpp -C -P -traditional -Wno-invalid-pp-token -ffreestanding
-DM   = -DMPI
 
 #  single processor, Intel compiler
 #      (default for NCAR's casper)
