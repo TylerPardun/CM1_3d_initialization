@@ -7,6 +7,10 @@
 
   CONTAINS
 
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! For modifications search "3D initialization"
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
 !-----------------------------------------------------------------------------
 !
 !  subroutine BASE:  Specify base-state arrays for CM1. 
@@ -31,7 +35,7 @@
                       n3w1,n3w2,n3e1,n3e2,s3w1,s3w2,s3e1,s3e2,              &
                       uw31,uw32,ue31,ue32,us31,us32,un31,un32,              &
                       vw31,vw32,ve31,ve32,vs31,vs32,vn31,vn32,              &
-                      sw31,sw32,se31,se32,ss31,ss32,sn31,sn32,xh,yh) !3D input_sounding: Add xh,yh for CM1 grid
+                      sw31,sw32,se31,se32,ss31,ss32,sn31,sn32,xh,yh) !3D initialization: Add xh,yh for CM1 grid
       use input
       use constants
       use bc_module
@@ -2489,6 +2493,10 @@
 ! already been retrieved from the input_sounding file
 !--------------------------
 
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! Begin 3D initialization from input_sounding.nc
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     IF( (isnd.ne.7) .and. (isnd.ne.67) ) THEN !Modified to incorporate heterogeneous initialization
 
       do k=1,nk
@@ -2506,6 +2514,10 @@
       enddo
       enddo
       enddo
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! End 3D initialization from input_sounding.nc
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 !-----------------------------------------------------------------------
 !  iwnd = 1
