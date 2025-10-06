@@ -7,6 +7,10 @@
 
   CONTAINS
 
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! For modifications search "3D heterogeneous initialization" (only one though)
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
       subroutine param(dt,dtlast,stattim,taptim,rsttim,radtim,prcltim,  &
                        cloudvar,rhovar,qmag,qname,qunit,budname,        &
                        xh,rxh,arh1,arh2,uh,ruh,xf,rxf,arf1,arf2,uf,ruf, &
@@ -833,7 +837,7 @@
 !  begin non-fatal checks:
 
       !-----
-      IF( (isnd.ne.7) .and. (isnd.ne.67) ) THEN !Modified to incorporate heterogeneous initialization
+      IF( (isnd.ne.7) .and. (isnd.ne.67) ) THEN !Modified to incorporate 3D heterogeneous initialization
         IF( iwnd.gt.0 )THEN
         if(myid.eq.0)then
         print *,'  -------------------------------- '
